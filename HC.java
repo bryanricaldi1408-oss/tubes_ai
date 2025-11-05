@@ -13,6 +13,9 @@ public class HC {
     static int panjangBoard;
     static int lebarBoard;
     static int maxIter;
+    static Map<String, Double> distanceCache = new HashMap<>();
+
+
     static class Point {
         int row,col;
         Point(int row, int col){
@@ -21,8 +24,9 @@ public class HC {
         }
     }
     static class Node{
-        int row, col, distance;
-        Node(int row, int col, int distance){
+        int row, col;
+        double distance;
+        Node(int row, int col, double distance){
             this.row = row;
             this.col = col;
             this.distance = distance;
@@ -174,6 +178,8 @@ public class HC {
     
     static double bfs(Point house, Point firestation){
         int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
+        String key = house.row + "," + house.col + "-" + firestation.row + "," + firestation.col;
+        if (distanceCache.containsKey(key)) return distanceCache.get(key);
         int houseR = house.row;
         int houseC = house.col;
         
@@ -187,6 +193,7 @@ public class HC {
             Node cur = queue.poll();
             
             if(cur.row == firestation.row && cur.col == firestation.col){
+                distanceCache.put(key, cur.distance);
                 return cur.distance;
             }
             for (int[] d : dir) {
