@@ -13,9 +13,20 @@ public class HC {
     static int panjangBoard;
     static int lebarBoard;
     static int maxIter;
+    static int banyakStation;
     static Map<String, Double> distanceCache = new HashMap<>();
 
 
+    static class Solution{
+        List<Point> stations;
+        double fitness;
+
+        Solution(List<Point> stations, double fitness){
+            this.stations = stations;
+            this.fitness = fitness;
+        }
+    }
+    /*tipe data point untuk menyimpan semua koordinat rumah, pohon, dan fireStations */
     static class Point {
         int row,col;
         Point(int row, int col){
@@ -23,6 +34,7 @@ public class HC {
             this.col = col;
         }
     }
+    /*tipe data Node untuk menyimpan posisi rumah dan jarak rumah ke firestations */
     static class Node{
         int row, col;
         double distance;
@@ -33,7 +45,6 @@ public class HC {
         }
     }
     public static void main(String[] args) {
-        int banyakStation;
         try {
             String path = args[0];
             Scanner sc = new Scanner(new File(path));
@@ -69,9 +80,9 @@ public class HC {
             return;
         }
         
-        hillClimbing(banyakStation);
+        randomRestartHC(10);
     }
-    static void hillClimbing(int banyakStation){
+    static Solution hillClimbing(){
         //Inisialisasi solusi awal: p station di sel kosong yang random
         for(int i=0; i<banyakStation; i++){
             Point pos = getRandomEmptyCell();
@@ -106,13 +117,45 @@ public class HC {
             }
             
         }
-        System.out.printf("%d %.5f%n", banyakStation, bestAvg);
-        for (Point s : bestStations) {
+        
+        clearGrid(fireStations);
+        return new Solution(bestStations, bestAvg);
+    }
+    /*
+     * randomRestartHC
+     * @param nRestarts berapa kali melakukan hill climbing
+     */
+    static void randomRestartHC(int nRestart){
+        double globalBestFitness = Double.MAX_VALUE;
+        List<Point> globalBestStations = new ArrayList<>();
+
+        for(int i=0; i<nRestart; i++){
+            fireStations.clear();
+
+            Solution result = hillClimbing();
+
+            if(result.fitness < globalBestFitness){
+                globalBestFitness = result.fitness;
+                globalBestStations = result.stations;
+            }
+        }
+        System.out.printf("%d %.5f%n", banyakStation, globalBestFitness);
+        for (Point s : globalBestStations) {
             System.out.printf("%d %d%n", (s.row + 1), (s.col + 1));
         }
-        
     }
-    
+
+
+    static void clearGrid(List<Point> stationToClear){
+        for(Point p : stationToClear){
+            if(isNotOutOfBound(p.row, p.col)){
+                if(grid[p.row][p.col] == 3){
+                    grid[p.row][p.col] = 0;
+                }
+            }
+        }
+        distanceCache.clear();
+    }
     static Point getNeighbor(Point p){
         int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
         
