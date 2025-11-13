@@ -23,7 +23,7 @@ public class GA2 {
     static int POP_SIZE = 40;
     static int MAX_GEN = 100;
     static double CROSS_RATE = 0.8;
-    static double MUT_RATE = 0.2;
+    static double MUT_RATE = 0.05;
 
     static class Individual {
         List<Point> fireStations;
@@ -233,3 +233,4 @@ public class GA2 {
         return dist;
     }
 }
+
