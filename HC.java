@@ -14,7 +14,6 @@ public class HC {
     static int lebarBoard;
     static int maxIter;
     static int banyakStation;
-    static Map<String, Double> distanceCache = new HashMap<>();
 
 
     static class Solution{
@@ -80,7 +79,7 @@ public class HC {
             return;
         }
         
-        randomRestartHC(10);
+        randomRestartHC(Integer.parseInt(args[2]));
     }
     static Solution hillClimbing(){
         //Inisialisasi solusi awal: p station di sel kosong yang random
@@ -154,24 +153,26 @@ public class HC {
                 }
             }
         }
-        distanceCache.clear();
     }
     static Point getNeighbor(Point p){
         int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
-        
-        boolean validNeighbor = false;
-        int newRow = 0;
-        int newCol = 0;
-        
-        while(!validNeighbor){
-            int newDir = rnd.nextInt(4);
-            
-            newRow = (int) ((p.row + dir[newDir][0]));
-            newCol = (int) ((p.col + dir[newDir][1]));
-            
-            validNeighbor = isNotOutOfBound(newRow, newCol) && isInEmptySpace(newRow, newCol);
+        List<Point> validNeighbors = new ArrayList<>();
+
+        for (int[] d : dir) {
+            int newRow = p.row + d[0];
+            int newCol = p.col + d[1];
+
+            if (isNotOutOfBound(newRow, newCol) && isInEmptySpace(newRow, newCol)) {
+                validNeighbors.add(new Point(newRow, newCol));
+            }
         }
-        return new Point(newRow, newCol);
+
+        if (validNeighbors.isEmpty()) {
+            return p; // Tidak ada tetangga valid, kembalikan posisi semula
+        }
+
+        // Pilih satu tetangga valid secara acak
+        return validNeighbors.get(rnd.nextInt(validNeighbors.size()));
     }
     
     static boolean isInEmptySpace(int nx, int ny){
@@ -202,58 +203,51 @@ public class HC {
         }
     }
     
-    static double fitnessFunction(){
+    static double fitnessFunction() {
         double totalDistance = 0.0;
-        
-        for(Point house : houses){
-            double best = Double.MAX_VALUE;
-            for (Point s : fireStations) {
-                double d = bfs(house, s);
-                if (d < best) best = d;
-            }
-            if(best == Double.MAX_VALUE)
-            return Double.POSITIVE_INFINITY;
-            totalDistance += best;
+        int[][] distances = new int[panjangBoard][lebarBoard];
+        for (int[] row : distances) {
+            Arrays.fill(row, -1); // -1 menandakan belum dikunjungi
         }
-        
-        return totalDistance/houses.size();
-    }
-    
-    static double bfs(Point house, Point firestation){
-        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
-        String key = house.row + "," + house.col + "-" + firestation.row + "," + firestation.col;
-        if (distanceCache.containsKey(key)) return distanceCache.get(key);
-        int houseR = house.row;
-        int houseC = house.col;
-        
-        Queue <Node> queue = new LinkedList<>();
-        boolean[][] visited = new boolean[panjangBoard][lebarBoard];
-        
-        queue.add(new Node(houseR, houseC, 0));
-        visited[houseR][houseC] = true;
-        
-        while(!queue.isEmpty()){
-            Node cur = queue.poll();
-            
-            if(cur.row == firestation.row && cur.col == firestation.col){
-                distanceCache.put(key, cur.distance);
-                return cur.distance;
+
+        Queue<Point> queue = new LinkedList<>();
+
+        // Inisialisasi jarak untuk semua fire stations
+        for (Point station : fireStations) {
+            if (isNotOutOfBound(station.row, station.col)) {
+                queue.add(new Point(station.row, station.col));
+                distances[station.row][station.col] = 0;
             }
-            for (int[] d : dir) {
-                int nx = cur.row + d[0];
-                int ny = cur.col + d[1];
-                
-                if(isNotOutOfBound(nx,ny) && grid[nx][ny] != 2 && !visited[nx][ny]){
-                    visited[nx][ny] = true;
-                    queue.add(new Node(nx, ny, cur.distance+1));
+        }
+
+        int[][] dir = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+        while(!queue.isEmpty()){
+            Point curr = queue.poll();
+
+            for(int[] d : dir){
+                int nx = curr.row + d[0];
+                int ny = curr.col + d[1];
+
+                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && distances[nx][ny] == -1) {
+                    distances[nx][ny] = distances[curr.row][curr.col] + 1;
+                    queue.add(new Point(nx, ny));
                 }
             }
         }
-        
-        return Double.MAX_VALUE;
+
+        // Hitung total jarak untuk semua rumah
+        for (Point house : houses) {
+            int dist = distances[house.row][house.col];
+            if (dist == -1) { // Rumah tidak dapat dijangkau
+                return Double.POSITIVE_INFINITY;
+            }
+            totalDistance += dist;
+        }
+
+
+        return totalDistance / houses.size();
     }
-    
-    
     
 }
 
