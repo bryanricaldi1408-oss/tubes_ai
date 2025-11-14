@@ -21,6 +21,11 @@ public class SA {
     }
     
     
+    static final int EMPTY = 0;
+    static final int HOUSE = 1;
+    static final int TREE = 2;
+    static final int FIRE_STATION = 3;
+    
     static final Random rnd = new Random();
     static List<Point> houses = new ArrayList<>();
     static List<Point> trees = new ArrayList<>();
@@ -30,35 +35,60 @@ public class SA {
     static int lebarBoard;
     
     static int banyakStation;
+    static int banyakRumah;
+    static int banyakPohon;
     static Map<String, Double> distanceCache = new HashMap<>();
-    
-    static Point getNeighbor(Point p, double stepSize){
-        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
-        
-        boolean validNeighbor = false;
-        int newRow = 0;
-        int newCol = 0;
-        int itr = 0;
-        
-        while(!validNeighbor && itr < 1000){
-            int newDir = rnd.nextInt(4);
-            
-            int tempRow = p.row + (int) Math.round(dir[newDir][0]  * stepSize);
-            int tempCol = p.col + (int) Math.round(dir[newDir][1]  * stepSize);
-            
-            if (isNotOutOfBound(tempRow, tempCol) && isInEmptySpace(tempRow, tempCol)) {
-                newRow = tempRow;
-                newCol = tempCol;
-                break;
-            }
-            itr++;
+
+    static void readInput(String filename) throws FileNotFoundException {
+        Scanner sc = new Scanner(new File(filename));
+        panjangBoard = sc.nextInt();
+        lebarBoard = sc.nextInt();
+        grid = new int[panjangBoard][lebarBoard];
+
+        banyakStation = sc.nextInt();
+        banyakRumah = sc.nextInt();
+        banyakPohon = sc.nextInt();
+
+        for (int i = 0; i < banyakRumah; i++) {
+            int x = sc.nextInt() - 1;
+            int y = sc.nextInt() - 1;
+            houses.add(new Point(x, y));
+            grid[x][y] = 1;
         }
-        return new Point(newRow, newCol);
-        
+
+        for (int i = 0; i < banyakPohon; i++) {
+            int x = sc.nextInt() - 1;
+            int y = sc.nextInt() - 1;
+            trees.add(new Point(x, y));
+            grid[x][y] = 2;
+        }
+        sc.close();
     }
     
+    static Point getNeighbor(Point p){
+        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
+        List<Point> validNeighbors = new ArrayList<>();
+
+        for (int[] d : dir) {
+            int newRow = p.row + d[0];
+            int newCol = p.col + d[1];
+
+            if (isNotOutOfBound(newRow, newCol) && isInEmptySpace(newRow, newCol)) {
+                validNeighbors.add(new Point(newRow, newCol));
+            }
+        }
+
+        if (validNeighbors.isEmpty()) {
+            return p; // Tidak ada tetangga valid, kembalikan posisi semula
+        }
+
+        // Pilih satu tetangga valid secara acak
+        return validNeighbors.get(rnd.nextInt(validNeighbors.size()));
+    }
+    
+    
     static boolean isInEmptySpace(int nx, int ny){
-        if(grid[nx][ny] != 0){
+        if(grid[nx][ny] != EMPTY){
             return false;
         }
         return true;
@@ -71,63 +101,77 @@ public class SA {
         return true;
     }
     
-    static double fitnessFunction(){
+    static double fitnessFunction() {
         double totalDistance = 0.0;
-        
-        for(Point house : houses){
-            double best = Double.MAX_VALUE;
-            for (Point s : fireStations) {
-                double d = bfs(house, s);
-                if (d < best) best = d;
-            }
-            if(best == Double.MAX_VALUE)
-            return Double.POSITIVE_INFINITY;
-            totalDistance += best;
+        int[][] distances = new int[panjangBoard][lebarBoard];
+        for (int[] row : distances) {
+            Arrays.fill(row, -1); // -1 menandakan belum dikunjungi
         }
-        
-        return totalDistance/houses.size();
-    }
-    
-    static double bfs(Point house, Point firestation){
-        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
-        String key = house.row + "," + house.col + "-" + firestation.row + "," + firestation.col;
-        if (distanceCache.containsKey(key)) return distanceCache.get(key);
-        int houseR = house.row;
-        int houseC = house.col;
-        
-        Queue <Node> queue = new LinkedList<>();
-        boolean[][] visited = new boolean[panjangBoard][lebarBoard];
-        
-        queue.add(new Node(houseR, houseC, 0));
-        visited[houseR][houseC] = true;
-        
-        while(!queue.isEmpty()){
-            Node cur = queue.poll();
-            
-            if(cur.row == firestation.row && cur.col == firestation.col){
-                distanceCache.put(key, cur.distance);
-                return cur.distance;
+
+        Queue<Point> queue = new LinkedList<>();
+
+        // Inisialisasi jarak untuk semua fire stations
+        for (Point station : fireStations) {
+            if (isNotOutOfBound(station.row, station.col)) {
+                queue.add(new Point(station.row, station.col));
+                distances[station.row][station.col] = 0;
             }
-            for (int[] d : dir) {
-                int nx = cur.row + d[0];
-                int ny = cur.col + d[1];
-                
-                if(isNotOutOfBound(nx,ny) && grid[nx][ny] != 2 && !visited[nx][ny]){
-                    visited[nx][ny] = true;
-                    queue.add(new Node(nx, ny, cur.distance+1));
+        }
+
+        int[][] dir = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+        while(!queue.isEmpty()){
+            Point curr = queue.poll();
+
+            for(int[] d : dir){
+                int nx = curr.row + d[0];
+                int ny = curr.col + d[1];
+
+                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && distances[nx][ny] == -1) {
+                    distances[nx][ny] = distances[curr.row][curr.col] + 1;
+                    queue.add(new Point(nx, ny));
                 }
             }
         }
-        
-        return Double.MAX_VALUE;
-    }
-    static void simulatedAnnealing(double t0, double cooling, double stopping_temp, double stepSize) {
-        // Inisialisasi awal (sudah benar)
-        for(int i=0; i<banyakStation; i++){
-            Point pos = getRandomEmptyCell();
-            grid[pos.row][pos.col] = 3;
-            fireStations.add(pos); // fireStations adalah state saat ini (CURRENT)
+
+        // Hitung total jarak untuk semua rumah
+        for (Point house : houses) {
+            int dist = distances[house.row][house.col];
+            if (dist == -1) { // Rumah tidak dapat dijangkau
+                return Double.POSITIVE_INFINITY;
+            }
+            totalDistance += dist;
         }
+
+
+        return totalDistance / houses.size();
+    }
+    
+    static void simulatedAnnealing(double t0, double cooling, double stopping_temp) {
+        // Store initial grid state (houses and trees)
+        int[][] initialGrid = new int[panjangBoard][lebarBoard];
+        for (int r = 0; r < panjangBoard; r++) {
+            for (int c = 0; c < lebarBoard; c++) {
+                initialGrid[r][c] = grid[r][c];
+            }
+        }
+
+        // Inisialisasi awal (sudah benar)
+        do {
+            // Reset grid to initial state (houses and trees only)
+            for (int r = 0; r < panjangBoard; r++) {
+                for (int c = 0; c < lebarBoard; c++) {
+                    grid[r][c] = initialGrid[r][c];
+                }
+            }
+            fireStations.clear(); // Clear previous attempts
+
+            for(int i=0; i<banyakStation; i++){
+                Point pos = getRandomEmptyCell();
+                grid[pos.row][pos.col] = 3;
+                fireStations.add(pos); // fireStations adalah state saat ini (CURRENT)
+            }
+        } while (Double.isInfinite(fitnessFunction()));
         
         double currentFitness = fitnessFunction(); // Fitness dari state saat ini
         double bestFitness = currentFitness; // Best fitness
@@ -138,7 +182,7 @@ public class SA {
         while(temprature > stopping_temp){
             int idx = rnd.nextInt(banyakStation);
             Point currentStation = fireStations.get(idx); 
-            Point neighbor = getNeighbor(currentStation, stepSize);
+            Point neighbor = getNeighbor(currentStation);
             
             grid[currentStation.row][currentStation.col] = 0;
             fireStations.set(idx, neighbor);
@@ -192,32 +236,7 @@ public class SA {
         public static void main(String[] args) {
             try {
                 String path = args[0];
-                Scanner sc = new Scanner(new File(path));
-                
-                panjangBoard = sc.nextInt(); 
-                lebarBoard = sc.nextInt();  
-                
-                grid = new int[panjangBoard][lebarBoard];
-                banyakStation = sc.nextInt(); 
-                int banyakRumah = sc.nextInt(); 
-                int banyakPohon = sc.nextInt(); 
-                
-                /*1 menandakan rumah, 2 menandakan pohon, 3 menandakan fire station */            
-                for (int i = 0; i < banyakRumah; i++) {
-                    int x = sc.nextInt()-1;
-                    int y = sc.nextInt()-1;
-                    grid[x][y]=1; 
-                    houses.add(new Point(x, y));
-                }
-                
-                for (int i = 0; i < banyakPohon; i++) {
-                    int x = sc.nextInt()-1;
-                    int y = sc.nextInt()-1;
-                    grid[x][y]=2;
-                    trees.add(new Point(x, y));
-                }
-                
-                sc.close();
+                readInput(path);
                 
             } catch (FileNotFoundException e) {
                 System.out.println("File not found!");
@@ -225,7 +244,7 @@ public class SA {
                 return;
             } 
             
-            simulatedAnnealing(100,0.999, 0.001, 0.5);
+            simulatedAnnealing(Double.parseDouble(args[1]),Double.parseDouble(args[2]), Double.parseDouble(args[3]));
         }
     }
     
