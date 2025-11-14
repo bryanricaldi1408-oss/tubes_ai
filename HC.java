@@ -14,6 +14,8 @@ public class HC {
     static int lebarBoard;
     static int maxIter;
     static int banyakStation;
+    static int banyakRumah;
+    static int banyakPohon;
 
 
     static class Solution{
@@ -43,36 +45,38 @@ public class HC {
             this.distance = distance;
         }
     }
+
+    static void readInput(String filename) throws FileNotFoundException {
+        Scanner sc = new Scanner(new File(filename));
+        panjangBoard = sc.nextInt();
+        lebarBoard = sc.nextInt();
+        grid = new int[panjangBoard][lebarBoard];
+
+        banyakStation = sc.nextInt();
+        banyakRumah = sc.nextInt();
+        banyakPohon = sc.nextInt();
+
+        for (int i = 0; i < banyakRumah; i++) {
+            int x = sc.nextInt() - 1;
+            int y = sc.nextInt() - 1;
+            houses.add(new Point(x, y));
+            grid[x][y] = 1;
+        }
+
+        for (int i = 0; i < banyakPohon; i++) {
+            int x = sc.nextInt() - 1;
+            int y = sc.nextInt() - 1;
+            trees.add(new Point(x, y));
+            grid[x][y] = 2;
+        }
+        sc.close();
+    }
+
     public static void main(String[] args) {
         try {
             String path = args[0];
-            Scanner sc = new Scanner(new File(path));
-            
-            panjangBoard = sc.nextInt(); 
-            lebarBoard = sc.nextInt();  
-            
-            grid = new int[panjangBoard][lebarBoard];
-            banyakStation = sc.nextInt(); 
-            int banyakRumah = sc.nextInt(); 
-            int banyakPohon = sc.nextInt(); 
+            readInput(path);
             maxIter = Integer.parseInt(args[1]);
-            /*1 menandakan rumah, 2 menandakan pohon, 3 menandakan fire station */            
-            for (int i = 0; i < banyakRumah; i++) {
-                int x = sc.nextInt()-1;
-                int y = sc.nextInt()-1;
-                grid[x][y]=1; 
-                houses.add(new Point(x, y));
-            }
-            
-            for (int i = 0; i < banyakPohon; i++) {
-                int x = sc.nextInt()-1;
-                int y = sc.nextInt()-1;
-                grid[x][y]=2;
-                trees.add(new Point(x, y));
-            }
-            
-            sc.close();
-            
         } catch (FileNotFoundException e) {
             System.out.println("File not found!");
             e.printStackTrace();
