@@ -42,7 +42,8 @@ public class GA {
         MAX_GEN = Integer.parseInt(args[1]);
         POP_SIZE = Integer.parseInt(args[2]);
         CROSS_RATE=Double.parseDouble(args[3]);
-        MUT_RATE=Double.parseDouble(args[4]);
+        ELITISM_RATE= Double.parseDouble(args[4]); 
+        MUT_RATE=Double.parseDouble(args[5]);
         readInput(filename);
         Individual best = geneticAlgorithm();
 
