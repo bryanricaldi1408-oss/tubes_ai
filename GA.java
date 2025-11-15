@@ -58,7 +58,7 @@ public class GA {
 
         System.out.printf("%d %.5f%n", p, best.fitness);
         for (Point fs : best.fireStations)
-            System.out.println((fs.row) + " " + (fs.col));
+            System.out.println((fs.row+1) + " " + (fs.col+1));
     }
 
     // ================== INPUT ===================
