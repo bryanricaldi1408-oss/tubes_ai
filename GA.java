@@ -5,13 +5,22 @@ public class GA {
 
     static class Point {
         int row, col;
-        Point(int r, int c) { row = r; col = c; }
+
+        Point(int r, int c) {
+            row = r;
+            col = c;
+        }
     }
 
     static class Node {
         int row, col;
         double distance;
-        Node(int r, int c, double d) { row = r; col = c; distance = d; }
+
+        Node(int r, int c, double d) {
+            row = r;
+            col = c;
+            distance = d;
+        }
     }
 
     static int[][] grid;
@@ -19,18 +28,19 @@ public class GA {
     static int p, h, t;
     static List<Point> houses = new ArrayList<>();
     static List<Point> trees = new ArrayList<>();
-    static Random rnd = new Random();
+    static Random rnd = new Random(67);
 
     // GA Parameters
     static int MAX_GEN;
     static int POP_SIZE;
     static double CROSS_RATE;
     static double MUT_RATE;
-    static double ELITISM_RATE; 
+    static double ELITISM_RATE;
 
     static class Individual {
         List<Point> fireStations;
         double fitness;
+
         Individual(List<Point> stations) {
             this.fireStations = stations;
             this.fitness = fitnessFunction(stations);
@@ -41,9 +51,8 @@ public class GA {
         String filename = args[0];
         MAX_GEN = Integer.parseInt(args[1]);
         POP_SIZE = Integer.parseInt(args[2]);
-        CROSS_RATE=Double.parseDouble(args[3]);
-        ELITISM_RATE= Double.parseDouble(args[4]); 
-        MUT_RATE=Double.parseDouble(args[5]);
+        CROSS_RATE = Double.parseDouble(args[3]);
+        MUT_RATE = Double.parseDouble(args[4]);
         readInput(filename);
         Individual best = geneticAlgorithm();
 
@@ -54,6 +63,8 @@ public class GA {
 
     // ================== INPUT ===================
     static void readInput(String filename) throws FileNotFoundException {
+        houses.clear();
+        trees.clear();
         Scanner sc = new Scanner(new File(filename));
         panjangBoard = sc.nextInt();
         lebarBoard = sc.nextInt();
@@ -84,7 +95,7 @@ public class GA {
         List<Individual> population = initPopulation();
         Individual best = getBest(population);
 
-        int elitismCount = (int)(POP_SIZE * ELITISM_RATE);
+        int elitismCount = (int) (POP_SIZE * ELITISM_RATE);
 
         for (int gen = 0; gen < MAX_GEN; gen++) {
             List<Individual> newPop = new ArrayList<>();
@@ -172,7 +183,8 @@ public class GA {
         while (true) {
             int x = rnd.nextInt(panjangBoard);
             int y = rnd.nextInt(lebarBoard);
-            if (grid[x][y] == 0) return new Point(x, y);
+            if (grid[x][y] == 0)
+                return new Point(x, y);
         }
     }
 
@@ -184,7 +196,12 @@ public class GA {
     }
 
     static Individual getBest(List<Individual> pop) {
-        return pop.stream().min(Comparator.comparingDouble(ind -> ind.fitness)).get();
+        Individual best = pop.get(0);
+        for (Individual ind : pop) {
+            if (ind.fitness < best.fitness)
+                best = ind;
+        }
+        return best;
     }
 
     // ================== FITNESS ===================
@@ -192,7 +209,8 @@ public class GA {
         double totalDistance = 0.0;
         int[][] dist = new int[panjangBoard][lebarBoard];
 
-        for (int[] row : dist) Arrays.fill(row, -1);
+        for (int[] row : dist)
+            Arrays.fill(row, -1);
 
         Queue<Point> q = new LinkedList<>();
         for (Point s : stations) {
@@ -200,7 +218,7 @@ public class GA {
             dist[s.row][s.col] = 0;
         }
 
-        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
+        int[][] dir = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
         while (!q.isEmpty()) {
             Point c = q.poll();
             for (int[] d : dir) {
