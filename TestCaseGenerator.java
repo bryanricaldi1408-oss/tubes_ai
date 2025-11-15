@@ -1,176 +1,127 @@
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
-/**
- * Membuat test case untuk masalah penempatan Fire Station.
- * * Aturan:
- * - h (rumah): 15-20% dari total sel
- * - t (pohon): 20-25% dari total sel
- * - p (stasiun): 1 stasiun per 15-25 rumah
- * - Koordinat: (1,1) adalah kiri Bawah. (x: 1..n, y: 1..m)
- */
 public class TestCaseGenerator {
 
     private final int m, n, p, h, t;
-    private final Set<Point> houseLocations;
-    private final Set<Point> treeLocations;
-    private final Random rand;
+    private final Random rand = new Random();
+    private int[][] grid; // 0=empty,1=house,2=tree
+    private List<Point> houses = new ArrayList<>();
+    private List<Point> trees = new ArrayList<>();
+    private List<Point> stations = new ArrayList<>();
 
-    /**
-     * Kelas internal sederhana untuk menyimpan koordinat dan menangani keunikan.
-     */
-    private static class Point {
+    static class Point {
         final int x, y;
-
-        Point(int x, int y) {
-            this.x = x;
-            this.y = y;
-        }
-
-        @Override
-        public String toString() {
-            return x + " " + y; // Format untuk output file
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Point point = (Point) o;
-            return x == point.x && y == point.y;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(x, y);
-        }
+        Point(int x, int y) { this.x = x; this.y = y; }
     }
 
     public TestCaseGenerator(int m, int n) {
         this.m = m;
         this.n = n;
-        this.rand = new Random();
-        int totalCells = m * n;
+        this.grid = new int[m][n];
 
-        // 1. Hitung h (rumah): 15-20% dari total
-        // (rand.nextDouble() * 0.05) -> angka acak antara 0.00 dan 0.05
-        double housePercent = 0.15 + (rand.nextDouble() * 0.05);
-        this.h = (int) (totalCells * housePercent);
+        int total = m * n;
 
-        // 2. Hitung t (pohon): 20-25% dari total
-        double treePercent = 0.20 + (rand.nextDouble() * 0.05);
-        this.t = (int) (totalCells * treePercent);
-
-        // 3. Hitung p (stasiun): 1 stasiun per 15-25 rumah
-        // (rand.nextInt(11)) -> angka acak antara 0 dan 10. (15 + ...) -> 15 s.d. 25
+        this.h = (int)(total * (0.15 + rand.nextDouble() * 0.05));
+        this.t = (int)(total * (0.20 + rand.nextDouble() * 0.05));
         int housesPerStation = 15 + rand.nextInt(11);
-        this.p = (int) Math.ceil((double) this.h / housesPerStation);
-        
-        // Pastikan h + t tidak melebihi total sel (meskipun dengan persen ini sangat tidak mungkin)
-        if (h + t > totalCells) {
-            // Ini seharusnya tidak terjadi dengan persentase 20% + 25% = 45%
-            System.err.println("Peringatan: Jumlah rumah dan pohon melebihi total sel. Coba lagi.");
-            // Untuk skenario nyata, mungkin perlu penyesuaian h dan t
-        }
+        this.p = (int)Math.ceil((double)h / housesPerStation);
 
-        // 4. Generate lokasi unik
-        this.houseLocations = new HashSet<>(h);
-        this.treeLocations = new HashSet<>(t);
-        generateLocations();
+        generateWithGuarantee();
     }
 
-    /**
-     * Menghasilkan lokasi unik untuk rumah dan pohon.
-     */
-    private void generateLocations() {
-        Set<Point> occupiedCells = new HashSet<>(h + t);
+    private void generateWithGuarantee() {
+        while (true) {
+            clearGrid();
+            placeRandom(houses, 1, h);
+            placeRandom(trees, 2, t);
+            placeStations();
 
-        // Generate lokasi rumah
-        for (int i = 0; i < h; i++) {
-            Point p = generateUniquePoint(occupiedCells);
-            this.houseLocations.add(p);
-        }
-
-        // Generate lokasi pohon
-        for (int i = 0; i < t; i++) {
-            Point p = generateUniquePoint(occupiedCells);
-            this.treeLocations.add(p);
-        }
-    }
-
-    /**
-     * Membuat satu Point unik yang belum ada di 'occupiedCells'.
-     * (x: 1..n, y: 1..m)
-     */
-    private Point generateUniquePoint(Set<Point> occupiedCells) {
-        Point p;
-        do {
-            // x (kolom) dari 1 sampai n
-            int x = rand.nextInt(n) + 1;
-            // y (baris) dari 1 sampai m
-            int y = rand.nextInt(m) + 1;
-            p = new Point(x, y);
-        } while (occupiedCells.contains(p)); // Ulangi jika koordinat sudah terisi
-        
-        occupiedCells.add(p); // Tandai sebagai terisi
-        return p;
-    }
-
-    /**
-     * Menyimpan data yang dihasilkan ke file teks.
-     */
-    public void saveToFile(String filename) throws IOException {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filename))) {
-            // Baris 1: m n
-            writer.println(m + " " + n);
-
-            // Baris 2: p h t
-            writer.println(p + " " + h + " " + t);
-
-            // Baris 3 s.d. 3+h-1: Lokasi rumah
-            for (Point house : houseLocations) {
-                writer.println(house.toString());
+            if (allHousesReachable()) {
+                System.out.println("Valid testcase generated.");
+                return;
             }
 
-            // Baris berikutnya: Lokasi pohon
-            for (Point tree : treeLocations) {
-                writer.println(tree.toString());
+            System.out.println("Invalid (unreachable house) → regenerating...");
+        }
+    }
+
+    private void clearGrid() {
+        houses.clear();
+        trees.clear();
+        stations.clear();
+        for (int i = 0; i < m; i++) Arrays.fill(grid[i], 0);
+    }
+
+    private void placeRandom(List<Point> list, int type, int count) {
+        while (list.size() < count) {
+            int x = rand.nextInt(m);
+            int y = rand.nextInt(n);
+            if (grid[x][y] == 0) {
+                grid[x][y] = type;
+                list.add(new Point(x + 1, y + 1)); // 1-based output
             }
         }
     }
 
-    // --- MAIN METHOD UNTUK EKSEKUSI ---
-
-    /**
-     * Main method untuk menjalankan generator dan membuat 3 file yang diminta.
-     */
-    public static void main(String[] args) {
-        try {
-            System.out.println("Membuat test case kecil (20x20)...");
-            TestCaseGenerator small = new TestCaseGenerator(20, 20);
-            small.saveToFile("testcase_small.txt");
-            System.out.printf("-> Tersimpan di 'testcase_small.txt' (p=%d, h=%d, t=%d)\n\n", small.p, small.h, small.t);
-
-            System.out.println("Membuat test case menengah (40x40)...");
-            TestCaseGenerator medium = new TestCaseGenerator(40, 40);
-            medium.saveToFile("testcase_medium.txt");
-            System.out.printf("-> Tersimpan di 'testcase_medium.txt' (p=%d, h=%d, t=%d)\n\n", medium.p, medium.h, medium.t);
-
-            System.out.println("Membuat test case besar (80x80)...");
-            TestCaseGenerator large = new TestCaseGenerator(80, 80);
-            large.saveToFile("testcase_large.txt");
-            System.out.printf("-> Tersimpan di 'testcase_large.txt' (p=%d, h=%d, t=%d)\n\n", large.p, large.h, large.t);
-            
-            System.out.println("Semua test case berhasil dibuat.");
-
-        } catch (IOException e) {
-            System.err.println("Terjadi error saat menulis file:");
-            e.printStackTrace();
+    private void placeStations() {
+        for (int i = 0; i < p; i++) {
+            Point h = houses.get(rand.nextInt(houses.size()));
+            stations.add(new Point(h.x, h.y));
         }
+    }
+
+    private boolean allHousesReachable() {
+        boolean[][] vis = new boolean[m][n];
+        Queue<int[]> q = new LinkedList<>();
+
+        for (Point s : stations) {
+            q.add(new int[]{s.x - 1, s.y - 1});
+            vis[s.x - 1][s.y - 1] = true;
+        }
+
+        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
+
+        while (!q.isEmpty()) {
+            int[] c = q.poll();
+            for (int[] d : dir) {
+                int nx = c[0] + d[0];
+                int ny = c[1] + d[1];
+                if (nx>=0 && ny>=0 && nx<m && ny<n && grid[nx][ny]!=2 && !vis[nx][ny]) {
+                    vis[nx][ny] = true;
+                    q.add(new int[]{nx, ny});
+                }
+            }
+        }
+
+        // check all houses reachable
+        for (Point h : houses) {
+            if (!vis[h.x - 1][h.y - 1]) return false;
+        }
+        return true;
+    }
+
+    public void save(String filename) throws IOException {
+        try (PrintWriter out = new PrintWriter(new FileWriter(filename))) {
+            out.println(m + " " + n);
+            out.println(p + " " + h + " " + t);
+            for (Point h : houses) out.println(h.x + " " + h.y);
+            for (Point r : trees) out.println(r.x + " " + r.y);
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        generateAndSave(20, 20, "testcase_small.txt");
+        generateAndSave(40, 40, "testcase_medium.txt");
+        generateAndSave(80, 80, "testcase_large.txt");
+    }
+
+    private static void generateAndSave(int m, int n, String name) throws IOException {
+        System.out.println("Generating " + name);
+        TestCaseGenerator gen = new TestCaseGenerator(m, n);
+        gen.save(name);
+        System.out.printf("Saved %s (p=%d, h=%d, t=%d)\n\n", name, gen.p, gen.h, gen.t);
     }
 }
