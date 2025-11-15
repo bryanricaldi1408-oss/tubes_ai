@@ -1,17 +1,26 @@
 import java.io.*;
 import java.util.*;
 
-public class GA{
+public class GA {
 
     static class Point {
         int row, col;
-        Point(int r, int c) { row = r; col = c; }
+
+        Point(int r, int c) {
+            row = r;
+            col = c;
+        }
     }
 
     static class Node {
         int row, col;
         double distance;
-        Node(int r, int c, double d) { row = r; col = c; distance = d; }
+
+        Node(int r, int c, double d) {
+            row = r;
+            col = c;
+            distance = d;
+        }
     }
 
     static int[][] grid;
@@ -19,13 +28,12 @@ public class GA{
     static int p, h, t;
     static List<Point> houses = new ArrayList<>();
     static List<Point> trees = new ArrayList<>();
-    static Map<String, Double> distanceCache = new HashMap<>();
     static Random rnd = new Random();
 
     // GA Parameters
     static int POP_SIZE = 50;
     static int MAX_GEN = 100;
-    static double CROSS_RATE = 0.8;
+    static double CROSS_RATE = 0.6;
     static double MUT_RATE = 0.05;
 
     static class Individual {
@@ -39,10 +47,6 @@ public class GA{
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java GA_FireStation input.txt maxGen");
-            return;
-        }
 
         String filename = args[0];
         MAX_GEN = Integer.parseInt(args[1]);
@@ -165,7 +169,8 @@ public class GA{
         List<Point> stations = new ArrayList<>();
         while (stations.size() < p) {
             Point pt = randomEmptyPoint();
-            if (!contains(stations, pt)) stations.add(pt);
+            if (!contains(stations, pt))
+                stations.add(pt);
         }
         return stations;
     }
@@ -187,49 +192,44 @@ public class GA{
     }
 
     // ================== FITNESS ===================
-    static double fitnessFunction(List<Point> fireStations) {
+    static double fitnessFunction(List<Point> stations) {
         double totalDistance = 0.0;
-        for (Point house : houses) {
-            double best = Double.MAX_VALUE;
-            for (Point s : fireStations) {
-                double d = bfs(house, s);
-                if (d < best) best = d;
-            }
-            if (best == Double.MAX_VALUE)
-                return Double.POSITIVE_INFINITY;
-            totalDistance += best;
+        int[][] distances = new int[panjangBoard][lebarBoard];
+        for (int[] row : distances) {
+            Arrays.fill(row, -1);
         }
-        return totalDistance / houses.size();
-    }
 
-    // ================== BFS ===================
-    static double bfs(Point house, Point firestation) {
-        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
-        String key = house.row + "," + house.col + "-" + firestation.row + "," + firestation.col;
-        if (distanceCache.containsKey(key))
-            return distanceCache.get(key);
+        Queue<Point> queue = new LinkedList<>();
 
-        Queue<Node> queue = new LinkedList<>();
-        boolean[][] visited = new boolean[panjangBoard][lebarBoard];
-        queue.add(new Node(house.row, house.col, 0));
-        visited[house.row][house.col] = true;
+        for (Point station : stations) {
+            queue.add(new Point(station.row, station.col));
+            distances[station.row][station.col] = 0;
+        }
+
+        int[][] dir = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
 
         while (!queue.isEmpty()) {
-            Node cur = queue.poll();
-            if (cur.row == firestation.row && cur.col == firestation.col) {
-                distanceCache.put(key, cur.distance);
-                return cur.distance;
-            }
+            Point curr = queue.poll();
+
             for (int[] d : dir) {
-                int nx = cur.row + d[0];
-                int ny = cur.col + d[1];
-                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && !visited[nx][ny]) {
-                    visited[nx][ny] = true;
-                    queue.add(new Node(nx, ny, cur.distance + 1));
+                int nx = curr.row + d[0];
+                int ny = curr.col + d[1];
+
+                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && distances[nx][ny] == -1) {
+                    distances[nx][ny] = distances[curr.row][curr.col] + 1;
+                    queue.add(new Point(nx, ny));
                 }
             }
         }
-        return Double.MAX_VALUE;
+
+        for (Point house : houses) {
+            int dist = distances[house.row][house.col];
+            if (dist == -1)
+                return Double.POSITIVE_INFINITY;
+            totalDistance += dist;
+        }
+
+        return totalDistance / houses.size();
     }
 
     static boolean isNotOutOfBound(int x, int y) {
