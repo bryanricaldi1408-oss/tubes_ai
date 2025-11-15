@@ -5,22 +5,13 @@ public class GA {
 
     static class Point {
         int row, col;
-
-        Point(int r, int c) {
-            row = r;
-            col = c;
-        }
+        Point(int r, int c) { row = r; col = c; }
     }
 
     static class Node {
         int row, col;
         double distance;
-
-        Node(int r, int c, double d) {
-            row = r;
-            col = c;
-            distance = d;
-        }
+        Node(int r, int c, double d) { row = r; col = c; distance = d; }
     }
 
     static int[][] grid;
@@ -31,15 +22,15 @@ public class GA {
     static Random rnd = new Random();
 
     // GA Parameters
-    static int POP_SIZE = 50;
-    static int MAX_GEN = 100;
-    static double CROSS_RATE = 0.6;
-    static double MUT_RATE = 0.05;
+    static int MAX_GEN;
+    static int POP_SIZE;
+    static double CROSS_RATE;
+    static double MUT_RATE;
+    static double ELITISM_RATE; 
 
     static class Individual {
         List<Point> fireStations;
         double fitness;
-
         Individual(List<Point> stations) {
             this.fireStations = stations;
             this.fitness = fitnessFunction(stations);
@@ -47,18 +38,17 @@ public class GA {
     }
 
     public static void main(String[] args) throws Exception {
-
         String filename = args[0];
         MAX_GEN = Integer.parseInt(args[1]);
-
+        POP_SIZE = Integer.parseInt(args[2]);
+        CROSS_RATE=Double.parseDouble(args[3]);
+        MUT_RATE=Double.parseDouble(args[4]);
         readInput(filename);
         Individual best = geneticAlgorithm();
 
-        // OUTPUT
         System.out.printf("%d %.5f%n", p, best.fitness);
-        for (Point fs : best.fireStations) {
+        for (Point fs : best.fireStations)
             System.out.println((fs.row) + " " + (fs.col));
-        }
     }
 
     // ================== INPUT ===================
@@ -68,9 +58,9 @@ public class GA {
         lebarBoard = sc.nextInt();
         grid = new int[panjangBoard][lebarBoard];
 
-        p = sc.nextInt();
-        h = sc.nextInt();
-        t = sc.nextInt();
+        p = sc.nextInt(); // num stations
+        h = sc.nextInt(); // num houses
+        t = sc.nextInt(); // num trees
 
         for (int i = 0; i < h; i++) {
             int x = sc.nextInt() - 1;
@@ -93,11 +83,16 @@ public class GA {
         List<Individual> population = initPopulation();
         Individual best = getBest(population);
 
+        int elitismCount = (int)(POP_SIZE * ELITISM_RATE);
+
         for (int gen = 0; gen < MAX_GEN; gen++) {
             List<Individual> newPop = new ArrayList<>();
 
-            // Elitism
-            newPop.add(best);
+            List<Individual> sorted = new ArrayList<>(population);
+            sorted.sort(Comparator.comparingDouble(a -> a.fitness));
+
+            for (int i = 0; i < elitismCount; i++)
+                newPop.add(sorted.get(i));
 
             while (newPop.size() < POP_SIZE) {
                 Individual parent1 = tournamentSelection(population);
@@ -123,15 +118,7 @@ public class GA {
         return best;
     }
 
-    static List<Individual> initPopulation() {
-        List<Individual> pop = new ArrayList<>();
-        for (int i = 0; i < POP_SIZE; i++) {
-            List<Point> stations = generateRandomStations();
-            pop.add(new Individual(stations));
-        }
-        return pop;
-    }
-
+    // ================== SELECTION ===================
     static Individual tournamentSelection(List<Individual> pop) {
         int k = 3;
         Individual best = pop.get(rnd.nextInt(pop.size()));
@@ -143,6 +130,7 @@ public class GA {
         return best;
     }
 
+    // ================== CROSSOVER ===================
     static List<Point> crossover(List<Point> a, List<Point> b) {
         List<Point> child = new ArrayList<>();
         for (int i = 0; i < p; i++) {
@@ -155,16 +143,20 @@ public class GA {
         return child;
     }
 
+    // ================== MUTATION ===================
     static void mutate(List<Point> stations) {
         int idx = rnd.nextInt(stations.size());
         stations.set(idx, randomEmptyPoint());
     }
 
-    static Individual getBest(List<Individual> pop) {
-        return pop.stream().min(Comparator.comparingDouble(ind -> ind.fitness)).get();
+    // ================== POPULATION & UTILS ===================
+    static List<Individual> initPopulation() {
+        List<Individual> pop = new ArrayList<>();
+        for (int i = 0; i < POP_SIZE; i++)
+            pop.add(new Individual(generateRandomStations()));
+        return pop;
     }
 
-    // ================== UTILITY ===================
     static List<Point> generateRandomStations() {
         List<Point> stations = new ArrayList<>();
         while (stations.size() < p) {
@@ -176,12 +168,11 @@ public class GA {
     }
 
     static Point randomEmptyPoint() {
-        int x, y;
-        do {
-            x = rnd.nextInt(panjangBoard);
-            y = rnd.nextInt(lebarBoard);
-        } while (grid[x][y] != 0);
-        return new Point(x, y);
+        while (true) {
+            int x = rnd.nextInt(panjangBoard);
+            int y = rnd.nextInt(lebarBoard);
+            if (grid[x][y] == 0) return new Point(x, y);
+        }
     }
 
     static boolean contains(List<Point> list, Point p) {
@@ -191,42 +182,40 @@ public class GA {
         return false;
     }
 
+    static Individual getBest(List<Individual> pop) {
+        return pop.stream().min(Comparator.comparingDouble(ind -> ind.fitness)).get();
+    }
+
     // ================== FITNESS ===================
     static double fitnessFunction(List<Point> stations) {
         double totalDistance = 0.0;
-        int[][] distances = new int[panjangBoard][lebarBoard];
-        for (int[] row : distances) {
-            Arrays.fill(row, -1);
+        int[][] dist = new int[panjangBoard][lebarBoard];
+
+        for (int[] row : dist) Arrays.fill(row, -1);
+
+        Queue<Point> q = new LinkedList<>();
+        for (Point s : stations) {
+            q.add(s);
+            dist[s.row][s.col] = 0;
         }
 
-        Queue<Point> queue = new LinkedList<>();
-
-        for (Point station : stations) {
-            queue.add(new Point(station.row, station.col));
-            distances[station.row][station.col] = 0;
-        }
-
-        int[][] dir = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
-
-        while (!queue.isEmpty()) {
-            Point curr = queue.poll();
-
+        int[][] dir = {{1,0},{-1,0},{0,1},{0,-1}};
+        while (!q.isEmpty()) {
+            Point c = q.poll();
             for (int[] d : dir) {
-                int nx = curr.row + d[0];
-                int ny = curr.col + d[1];
-
-                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && distances[nx][ny] == -1) {
-                    distances[nx][ny] = distances[curr.row][curr.col] + 1;
-                    queue.add(new Point(nx, ny));
+                int nx = c.row + d[0];
+                int ny = c.col + d[1];
+                if (isNotOutOfBound(nx, ny) && grid[nx][ny] != 2 && dist[nx][ny] == -1) {
+                    dist[nx][ny] = dist[c.row][c.col] + 1;
+                    q.add(new Point(nx, ny));
                 }
             }
         }
 
         for (Point house : houses) {
-            int dist = distances[house.row][house.col];
-            if (dist == -1)
+            if (dist[house.row][house.col] == -1)
                 return Double.POSITIVE_INFINITY;
-            totalDistance += dist;
+            totalDistance += dist[house.row][house.col];
         }
 
         return totalDistance / houses.size();
