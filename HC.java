@@ -4,7 +4,7 @@ import java.io.FileNotFoundException;
 
 public class HC {
     
-    static final Random rnd = new Random();
+    static final Random rnd = new Random(67);
     
     static List<Point> houses = new ArrayList<>();
     static List<Point> trees = new ArrayList<>();
